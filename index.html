@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>ToDo-app</title>
+		<link href="css/style.css" rel="stylesheet">
+		<script src="script.js" defer></script>
+	</head>
+
+	<body>
+		<div class="wrapper">
+			<section class="todo">
+				<h2>To-do list</h2>
+				<div class="input">
+					<form>
+						<input type="text" name="input-field" value="" placeholder="Add your todo" class="todo-input">
+						<button class="btn" type="submit">Add todo</button>
+					</form>
+				</div>
+				<ul id="todo-list">
+					<li class="todo">
+						<input type="checkbox" id="todo-1">
+						<label for="todo-1" class="costum-checkbox">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>
+						</label>
+						<label for="todo-1" class="todo-text">kelarin tugas web programming</label>
+						<button class="delete-button">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#222222">
+								<path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+							</svg>
+						</button>
+					</li>
+					<li class="todo">
+						<input type="checkbox" id="todo-2">
+						<label for="todo-2" class="costum-checkbox">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFe3e3"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>
+						</label>
+						<label for="todo-2" class="todo-text">kelarin tugas web programming</label>
+						<button class="delete-button">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#222222">
+								<path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+							</svg>
+						</button>
+					</li>
+				</ul>
+			</section>
+		</div>
+	</body>
+</html>
