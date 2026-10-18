@@ -2,17 +2,8 @@ const todoForm = document.querySelector("form");
 const todoInput = document.querySelector(".todo-input");
 const todoListUL = document.querySelector("#todo-list");
 
-let allTodos = [];
-
-function updateTodoList() {
-    todoListUL.innerHTML = "";
-
-    for (let todoIndex = 0; todoIndex < allTodos.length; todoIndex++) {
-        const todo = allTodos[todoIndex];
-        const todoItem = createTodoItem(todo, todoIndex);
-        todoListUL.append(todoItem);
-    }
-}
+let allTodos = getTodos();
+updateTodoList();
 
 todoForm.addEventListener("submit", function(e) {
     e.preventDefault();
@@ -21,19 +12,24 @@ todoForm.addEventListener("submit", function(e) {
 
 function addTodo() {
     const todoText = todoInput.value.trim();
-
     if (todoText.length > 0) {
         const todoObject = {
             text: todoText,
             completed: false,
         };
-
         allTodos.push(todoObject);
-
+        saveTodos();
         updateTodoList();
-
         todoInput.value = "";
     }
+}
+
+function updateTodoList() {
+    todoListUL.innerHTML = "";
+    allTodos.forEach((todo, todoIndex) => {
+        const todoItem = createTodoItem(todo, todoIndex);
+        todoListUL.append(todoItem);
+    });
 }
 
 function createTodoItem(todo, todoIndex) {
@@ -56,14 +52,17 @@ function createTodoItem(todo, todoIndex) {
         </button>
     `;
 
+    // Handle Delete Button
     const deleteButton = todoLI.querySelector(".delete-button");
-    deleteButton.addEventListener("click", function() {
+    deleteButton.addEventListener("click", () => {
         deleteTodoItem(todoIndex);
     });
 
+    // Handle Checkbox Toggle
     const checkbox = todoLI.querySelector("input[type='checkbox']");
-    checkbox.addEventListener("change", function() {
+    checkbox.addEventListener("change", () => {
         allTodos[todoIndex].completed = checkbox.checked;
+        saveTodos();
     });
 
     return todoLI;
@@ -71,5 +70,16 @@ function createTodoItem(todo, todoIndex) {
 
 function deleteTodoItem(todoIndex) {
     allTodos.splice(todoIndex, 1);
+    saveTodos();
     updateTodoList();
+}
+
+function saveTodos() {
+    const todosJson = JSON.stringify(allTodos);
+    localStorage.setItem("todos", todosJson);
+}
+
+function getTodos() {
+    const todos = localStorage.getItem("todos");
+    return todos ? JSON.parse(todos) : [];
 }
