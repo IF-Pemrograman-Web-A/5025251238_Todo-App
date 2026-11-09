@@ -5,47 +5,95 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>ToDo-app</title>
+		<!-- apply saved theme -->
+		<script>
+			(function(){
+				var theme;
+				try{theme=localStorage.getItem("todo-theme");}catch(e){}
+				if(theme!=="light" && theme !== "dark"){
+					theme = window.matchMedia("(prefers-color-scheme: light)")?"light":"dark";
+				}
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+
 		<link href="css/style.css" rel="stylesheet">
 		<script src="script.js" defer></script>
 	</head>
 
 	<body>
-		<div class="wrapper">
-			<section class="todo">
-				<h2>To-do list</h2>
-				<div class="input">
-					<form>
-						<input type="text" name="input-field" value="" placeholder="Add your todo" class="todo-input">
-						<button class="btn" type="submit">Add todo</button>
-					</form>
-				</div>
-				<ul id="todo-list">
-					<li class="todo">
-						<input type="checkbox" id="todo-1">
-						<label for="todo-1" class="costum-checkbox">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>
-						</label>
-						<label for="todo-1" class="todo-text">kelarin tugas web programming</label>
-						<button class="delete-button">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#222222">
-								<path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-							</svg>
-						</button>
-					</li>
-					<li class="todo">
-						<input type="checkbox" id="todo-2">
-						<label for="todo-2" class="costum-checkbox">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFe3e3"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>
-						</label>
-						<label for="todo-2" class="todo-text">kelarin tugas web programming</label>
-						<button class="delete-button">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#222222">
-								<path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-							</svg>
-						</button>
-					</li>
-				</ul>
+		<a href="main" class="skip-link">Skip to main content</a>
+		<header class="app-header">
+			<h1>ToDo-app</h1>
+			<button type="button" id="theme-toogle" class="btn btn-secondary" aria-pressed="false">
+				Dark Mode
+			</button>
+		</header>
+		<main class="wrapper">
+			<section class="todo-list-panel" aria-labelledby="list-heading">
+				<h2 id="list-heading">To-do list</h2>
+				<p id="empty-message" class="hint">Add your first todo using form</p>
+				<ul id="todo-list"></ul>
 			</section>
-		</div>
+
+			<section class="todo-editor-panel" aria-labelledby="form-heading">
+				<h2 id="form-heading">Add todo</h2>
+				<form id="todo-form" novalidate>
+					<div class="field">
+						<label for="todo-input">
+							Todo <span class="meta-label">(required)</span>
+						</label>
+						<input type="text" id="todo-input" class="todo-input" autocomplete="off" aria-required="true" aria-describedby="todo-error">
+						<p class="todo-error" id="error" role="alert"></p>
+					</div>
+					<div class="field">
+						<label for="remind-input"><span class="meta-label">(optional)</span></label>
+						<input type="datetime-local" id="remind-input" class="todo-input" aria-describedby="remind-hint remind-error">
+						<p id="remind-hint" class="hint">You get a notification</p>
+						<p id="remind-error" class="error" role="alert"></p>
+					</div>
+
+					<fieldset class="field">
+						<legend>Image <span class="meta-label">(optional)</span></legend>
+						<div class="button-row">
+							<button id="camera-btn" class="btn btn-secondary">Take photo</button>
+							<button id="upload-btn" class="btn btn-seoncary">Upload image</button>
+						</div>
+						<input type="file" id="file-input" accept="image/*" hidden>
+						<p id="image-error" class="error" role="alert"></p>
+
+						<div id="image-preview" class="image-preview" hidden>
+							<img src="Temp" alt="Preview of the attached img" id="preview-img">
+							<div class="field">
+								<label for="alt-input">Image description</label>
+								<input type="text" id="alt-input" class="todo-input" autocomplete="off" aria-describedby="alt-hint">
+								<p id="alt-hint" class="hint">Write description image</p>
+							</div>
+							<button id="remove-image-btn" class="btn btn-secondary">Remove image</button>
+						</div>
+					</fieldset>
+
+					<div class="button-row">
+						<button type="submit" id="submit-btn" class="btn">Add todo</button>
+						<button type="button" id="cancel-btn" class="btn btn-secondary" hidden>Cancel</button>
+					</div>
+				</form>
+				<div class="notif-box">
+					<p id="notif-status" class="hint"></p>
+					<button type="button" id="notif-btn" class="btn btn-secondary" hidden>Enable notifications</button>
+				</div>
+			</section>
+		</main>
+
+		<dialog id="camera-dialog" aria-labelledby="camera-title">
+			<h2 id="camera-title">Take aphoto</h2>
+			<video id="camera-video" autoplay muted aria-label="Live camera preview"></video>
+			<div class="button-row">
+				<button type="button" id="capture-btn" class="btn">Capture photo</button>
+				<button type="button" id="camera-blose-btn" class="btn btn-secondary">Cancel</button>
+			</div>
+		</dialog>
+		<div id="status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+		<canvas id="capture-canvas" hidden></canvas>
 	</body>
 </html>

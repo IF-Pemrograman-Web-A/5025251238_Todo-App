@@ -1,70 +1,122 @@
 :root {
 	--background: #0f2331;
 	--primary-color: #1c1d20;
+	--surface-hover: #25272c;
 	--secondary-color: #4a4d56;
 	--accent-color: #146789;
+	--accent-light: #2a9bc7;
+	--danger-color: #e5707a;
 	--text-color: #f0f0f0;
+	--text-muted: #9aa0ab;
+
+	--radius: 12px;
+	--radius-sm: 8px;
+	--shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+	--transition: 0.18s ease;
 }
 
 * {
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
-	font-family: Arial, sans-serif;
+	font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
 }
 
 body {
 	min-height: 100vh;
-	padding: 40px 20px;
-	background: var(--background);
+	padding: 48px 20px;
+	background: radial-gradient(circle at top, #163449 0%, var(--background) 55%);
+	background-attachment: fixed;
 	color: var(--text-color);
 	display: flex;
-	justify-content: center;
-}
-
-/* Card Container */
-.wrapper {
-	width: 500px;
-	max-width: 100%;
-	background: var(--primary-color);
-	padding: 30px;
-	border-radius: 12px;
-}
-
-/* Ensure section layout is strictly vertical */
-.todo {
-	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	align-items: center;
+	line-height: 1.5;
+}
+
+header {
+	width: min(1000px, 100%);
+	margin-bottom: 28px;
+	text-align: center;
+}
+
+header h1 {
+	font-size: clamp(1.8rem, 4vw, 2.6rem);
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	background: linear-gradient(90deg, var(--accent-light), #fff);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.wrapper {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 30px;
+	width: min(1000px, 100%);
+	align-items: start;
+}
+
+@media (max-width: 700px) {
+	body {
+		padding: 28px 14px;
+	}
+
+	.wrapper {
+		grid-template-columns: 1fr;
+	}
+}
+
+.todo-list-panel,
+.todo-editor-panel {
+	background: var(--primary-color);
+	padding: 28px;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	min-height: 400px;
 }
 
 h2 {
-	font-size: 2rem;
+	font-size: 1.15rem;
 	font-weight: 800;
+	letter-spacing: 2px;
 	text-transform: uppercase;
 	text-align: center;
-	color: var(--accent-color);
+	color: var(--accent-light);
 }
 
-/* Input Form Stacked */
 .input form {
 	display: flex;
 	gap: 10px;
+	margin: 22px 0;
 }
 
 .todo-input {
 	flex: 1;
+	min-width: 0;
 	padding: 12px 16px;
-	background: transparent;
+	background: rgba(255, 255, 255, 0.03);
 	border: 2px solid var(--secondary-color);
-	border-radius: 8px;
+	border-radius: var(--radius-sm);
 	font: inherit;
 	color: var(--text-color);
 	outline: none;
+	transition:
+		border-color var(--transition),
+		background var(--transition),
+		box-shadow var(--transition);
+}
+
+.todo-input::placeholder {
+	color: var(--text-muted);
 }
 
 .todo-input:focus {
 	border-color: var(--accent-color);
+	background: rgba(20, 103, 137, 0.08);
+	box-shadow: 0 0 0 3px rgba(20, 103, 137, 0.25);
 }
 
 .btn {
@@ -72,81 +124,183 @@ h2 {
 	background: var(--accent-color);
 	color: #fff;
 	border: none;
-	border-radius: 8px;
-	font-weight: bold;
+	border-radius: var(--radius-sm);
+	font-weight: 700;
 	cursor: pointer;
 	white-space: nowrap;
+	transition:
+		background var(--transition),
+		transform var(--transition);
 }
 
-/* Todo List Below Form */
+.btn:hover:not(:disabled) {
+	background: var(--accent-light);
+}
+
+.btn:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+.todo-input:disabled,
+.btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
 #todo-list {
 	list-style: none;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 10px;
 }
 
-.todo-list-item,
-li.todo {
+#todo-list:empty::before {
+	content: "Nothing to do yet. Add your first todo above.";
+	display: block;
+	padding: 24px 0;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 0.95rem;
+}
+
+.todo-item {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	background: #3f3f3f;
-	padding: 12px 16px;
-	border-radius: 8px;
+	padding: 10px 12px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	transition:
+		background var(--transition),
+		border-color var(--transition);
+}
+
+.todo-item:hover {
+	background: var(--surface-hover);
+	border-color: rgba(255, 255, 255, 0.08);
 }
 
 .todo-text {
 	flex: 1;
+	cursor: pointer;
 	word-break: break-word;
+	transition: opacity var(--transition);
 }
 
-/* Hide raw checkbox */
-li.todo input[type="checkbox"] {
-	display: none;
+/* hide raw checkbox */
+.todo-item input[type="checkbox"] {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
 }
 
-/* Custom Circle Checkbox */
+/* costum circle checkbox */
 .costum-checkbox {
-	width: 22px;
-	height: 22px;
-	min-width: 22px;
+	width: 24px;
+	height: 24px;
+	min-width: 24px;
 	border: 2px solid var(--secondary-color);
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	cursor: pointer;
+	transition:
+		background var(--transition),
+		border-color var(--transition);
+}
+
+.costum-checkbox:hover {
+	border-color: var(--accent-light);
 }
 
 .costum-checkbox svg {
 	display: none;
+	width: 18px;
+	height: 18px;
+	fill: #fff;
 }
 
-li.todo input[type="checkbox"]:checked+.costum-checkbox {
+.todo-item input[type="checkbox"]:checked+.costum-checkbox {
 	background: var(--accent-color);
 	border-color: var(--accent-color);
 }
 
-li.todo input[type="checkbox"]:checked+.costum-checkbox svg {
+.todo-item input[type="checkbox"]:checked+.costum-checkbox svg {
 	display: block;
 }
 
-li.todo input[type="checkbox"]:checked~.todo-text {
+.todo-item input[type="checkbox"]:checked~.todo-text {
 	text-decoration: line-through;
 	opacity: 0.5;
 }
 
+.todo-item input[type="checkbox"]:focus-visible+.costum-checkbox {
+	outline: 2px solid var(--accent-light);
+	outline-offset: 2px;
+}
+
+.edit-button {
+	background: none;
+	border: 1px solid var(--secondary-color);
+	color: var(--text-color);
+	border-radius: 6px;
+	padding: 4px 12px;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition:
+		border-color var(--transition),
+		color var(--transition);
+}
+
+.edit-button:hover {
+	border-color: var(--accent-light);
+	color: var(--accent-light);
+}
+
 .delete-button {
 	background: none;
-	color: indianred;
 	border: none;
+	color: var(--danger-color);
 	cursor: pointer;
 	display: flex;
 	align-items: center;
-	opacity: 0.7;
+	padding: 4px;
+	border-radius: 6px;
+	opacity: 0.6;
+	transition:
+		opacity var(--transition),
+		background var(--transition);
+}
+
+.delete-button svg {
+	fill: currentColor;
 }
 
 .delete-button:hover {
 	opacity: 1;
+	background: rgba(229, 112, 122, 0.12);
+}
+
+.edit-button:focus-visible,
+.delete-button:focus-visible,
+.btn:focus-visible {
+	outline: 2px solid var(--accent-light);
+	outline-offset: 2px;
+}
+
+.hint {
+	color: var(--text-muted);
+	font-size: 0.9rem;
+	text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+	}
 }
