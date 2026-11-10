@@ -44,7 +44,7 @@
 							Todo <span class="meta-label">(required)</span>
 						</label>
 						<input type="text" id="todo-input" class="todo-input" autocomplete="off" aria-required="true" aria-describedby="todo-error">
-						<p class="todo-error" id="error" role="alert"></p>
+						<p class="todo-error" id="todo-error" role="alert"></p>
 					</div>
 					<div class="field">
 						<label for="remind-input"><span class="meta-label">(optional)</span></label>
@@ -57,7 +57,7 @@
 						<legend>Image <span class="meta-label">(optional)</span></legend>
 						<div class="button-row">
 							<button id="camera-btn" class="btn btn-secondary">Take photo</button>
-							<button id="upload-btn" class="btn btn-seoncary">Upload image</button>
+							<button id="upload-btn" class="btn btn-secondary">Upload image</button>
 						</div>
 						<input type="file" id="file-input" accept="image/*" hidden>
 						<p id="image-error" class="error" role="alert"></p>
@@ -86,11 +86,11 @@
 		</main>
 
 		<dialog id="camera-dialog" aria-labelledby="camera-title">
-			<h2 id="camera-title">Take aphoto</h2>
+			<h2 id="camera-title">Take a photo</h2>
 			<video id="camera-video" autoplay muted aria-label="Live camera preview"></video>
 			<div class="button-row">
 				<button type="button" id="capture-btn" class="btn">Capture photo</button>
-				<button type="button" id="camera-blose-btn" class="btn btn-secondary">Cancel</button>
+				<button type="button" id="camera-close-btn" class="btn btn-secondary">Cancel</button>
 			</div>
 		</dialog>
 		<div id="status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
