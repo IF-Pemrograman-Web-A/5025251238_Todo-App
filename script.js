@@ -51,3 +51,22 @@ setInterval(async () => {
         }
     }
 }, 15000);
+
+// install button (PWA)
+let ip;
+const ib = $("#install-btn");
+addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    ip = e;
+    ib.hidden = false;
+});
+ib.onclick = async () => {
+    ip.prompt();
+    await ip.userChoice;
+    ip = null;
+    ib.hidden = true;
+};
+addEventListener("appinstalled", () => {
+    ib.hidden = true;
+    say("App installed");
+});

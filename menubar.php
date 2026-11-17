@@ -22,5 +22,6 @@
         <button class="btn btn-secondary">Switch</button>
     </form>
 
+    <button type="button" id="install-btn" class="btn" hidden>Install app</button>
     <button type="button" id="notif-btn" class="btn btn-secondary">Enable notifications</button>
 </nav>

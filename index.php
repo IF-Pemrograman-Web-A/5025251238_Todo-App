@@ -30,6 +30,9 @@ foreach ($todos as $t) if ($t["id"] == ($_GET["edit"] ?? 0) && $t["user_id"] == 
         if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         document.documentElement.dataset.theme = t;
     </script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0b5f80">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
