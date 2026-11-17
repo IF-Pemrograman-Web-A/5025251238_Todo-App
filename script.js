@@ -1,126 +1,53 @@
-const STORAGE_KEY = "todo-app-items";
+const $ = (s) => document.querySelector(s);
+const say = (m) => {
+    const s = $("#status");
+    s.textContent = "";
+    setTimeout(() => (s.textContent = m), 50);
+};
+const root = document.documentElement;
 
-const addForm = document.getElementById("add-form");
-const addInput = document.getElementById("add-input");
-const list = document.getElementById("todo-list");
-const editorForm = document.getElementById("editor-form");
-const editorInput = document.getElementById("editor-input");
-const editorSave = document.getElementById("editor-save");
-const editorHint = document.getElementById("editor-hint");
-
-const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" aria-hidden="true"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>`;
-const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>`;
-
-let todos = loadTodos();
-let editingId = null;
-
-function loadTodos() {
+const tb = $("#theme-toggle");
+tb.setAttribute("aria-pressed", root.dataset.theme === "dark");
+tb.onclick = () => {
+    const t = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = t;
+    tb.setAttribute("aria-pressed", t === "dark");
     try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch {
-        return [];
+        localStorage.setItem("todo-theme", t);
+    } catch { }
+    say(`${t} mode on`);
+};
+
+const swp =
+    "serviceWorker" in navigator
+        ? navigator.serviceWorker.register("sw.js").catch(() => null)
+        : Promise.resolve(null);
+const nb = $("#notif-btn");
+if (!("Notification" in window) || Notification.permission !== "default")
+    nb.hidden = true;
+nb.onclick = async () => {
+    await Notification.requestPermission();
+    nb.hidden = true;
+};
+
+setInterval(async () => {
+    for (const li of document.querySelectorAll("li[data-remind]")) {
+        const key = `n-${li.dataset.id}-${li.dataset.remind}`;
+        let seen;
+        try {
+            seen = localStorage.getItem(key);
+        } catch { }
+        if (seen || new Date(li.dataset.remind) > Date.now()) continue;
+        try {
+            localStorage.setItem(key, "1");
+        } catch { }
+        say("Reminder: " + li.dataset.text);
+        if ("Notification" in window && Notification.permission === "granted") {
+            const reg = await swp,
+                o = { body: li.dataset.text, tag: key };
+            reg?.active
+                ? reg.showNotification("Todo reminder", o)
+                : new Notification("Todo reminder", o);
+        }
     }
-}
-
-function saveTodos() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-}
-
-function render() {
-    list.innerHTML = "";
-
-    todos.forEach((todo) => {
-        const li = document.createElement("li");
-        li.className = "todo-item";
-        li.dataset.id = todo.id;
-
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.id = `todo-${todo.id}`;
-        checkbox.checked = todo.done;
-
-        const box = document.createElement("label");
-        box.htmlFor = checkbox.id;
-        box.className = "costum-checkbox";
-        box.innerHTML = CHECK_SVG;
-
-        const text = document.createElement("label");
-        text.htmlFor = checkbox.id;
-        text.className = "todo-text";
-        text.textContent = todo.text;
-
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.className = "edit-button";
-        edit.textContent = "Edit";
-
-        const del = document.createElement("button");
-        del.type = "button";
-        del.className = "delete-button";
-        del.setAttribute("aria-label", "Delete todo item");
-        del.innerHTML = TRASH_SVG;
-
-        li.append(checkbox, box, text, edit, del);
-        list.append(li);
-    });
-}
-
-function resetEditor() {
-    editingId = null;
-    editorInput.value = "";
-    editorInput.disabled = true;
-    editorSave.disabled = true;
-    editorHint.textContent = 'Click "Edit" on a todo to change its text here.';
-}
-
-addForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = addInput.value.trim();
-    if (!text) return;
-    todos.push({ id: crypto.randomUUID(), text, done: false });
-    saveTodos();
-    render();
-    addInput.value = "";
-    addInput.focus();
-});
-
-list.addEventListener("change", (e) => {
-    if (e.target.type !== "checkbox") return;
-    const id = e.target.closest(".todo-item").dataset.id;
-    const todo = todos.find((t) => t.id === id);
-    todo.done = e.target.checked;
-    saveTodos();
-});
-
-list.addEventListener("click", (e) => {
-    const item = e.target.closest(".todo-item");
-    if (!item) return;
-    const id = item.dataset.id;
-
-    if (e.target.closest(".delete-button")) {
-        todos = todos.filter((t) => t.id !== id);
-        saveTodos();
-        render();
-        if (editingId === id) resetEditor();
-    } else if (e.target.closest(".edit-button")) {
-        const todo = todos.find((t) => t.id === id);
-        editingId = id;
-        editorInput.disabled = false;
-        editorSave.disabled = false;
-        editorInput.value = todo.text;
-        editorHint.textContent = "Editing selected todo.";
-        editorInput.focus();
-    }
-});
-
-editorForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = editorInput.value.trim();
-    if (!editingId || !text) return;
-    todos.find((t) => t.id === editingId).text = text;
-    saveTodos();
-    render();
-    resetEditor();
-});
-
-render();
+}, 15000);
