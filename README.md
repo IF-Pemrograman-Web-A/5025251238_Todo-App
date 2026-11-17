@@ -50,8 +50,7 @@ Buka `http://localhost:3000`.
   - `activate`: menghapus cache versi lama.
   - `fetch`: melayani file dari cache terlebih dahulu (mode offline).
   - `notificationclick`: membuka atau memfokuskan tab aplikasi.
-> Batasan: pengecekan berjalan di halaman, jadi notifikasi hanya andal saat tab masih terbuka. Untuk notifikasi saat browser ditutup dibutuhkan Web Push (server + VAPID key, lihat bagian bawah).
- 
+     
 ### 4. Aksesibilitas
  
 - Skip link "Skip to main content" dan `<main>` yang bisa difokuskan.
