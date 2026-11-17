@@ -1,25 +1,28 @@
-Aplikasi todo untuk organisasi: setiap user punya todo Personal, dan bisa membagikan todo ke menu Shared agar terlihat oleh semua user. Data disimpan di PostgreSQL, gambar disimpan di folder uploads/.
-<img width="1841" height="1499" alt="Screenshot From 2026-11-17 14-32-50" src="https://github.com/user-attachments/assets/62bfebe0-c6b4-498b-9b81-528a57d4d503" />
-Fitur
-Menu samping (sidebar): Personal dan Shared
-CRUD todo dengan PHP: tambah, ubah, tandai selesai, hapus
-Upload gambar untuk todo (file handling PHP)
-Pengingat dengan notifikasi browser dan Service Worker
-Tema terang/gelap (disimpan di localStorage)
-Aksesibilitas: skip link, label di semua input, aria-current pada menu, pesan untuk screen reader, fokus terlihat jelas
-Struktur file
-File	Fungsi
-index.php	Halaman utama: ambil data, lalu menyusun menu, daftar, dan form
-config.php	Koneksi PDO ke PostgreSQL, session, token CSRF, fungsi e() dan fields()
-menubar.php	Sidebar (menu Personal/Shared, pilih user demo, tombol notifikasi)
-content.php	Daftar todo
-form.php	Form tambah/ubah todo
-actions.php	Proses CRUD (POST), lalu redirect
-data.sql	Struktur tabel dan data dummy
-style.css	Tampilan dan tema
-script.js	Tema, pendaftaran Service Worker, pengingat
-sw.js	Service Worker: cache style.css dan script.js, klik notifikasi
-uploads/	Tempat gambar yang diunggah
-Requirement
-PHP 8.1 atau lebih baru dengan ekstensi pdo_pgsql dan mbstring
-PostgreSQL
+# To-Do Offline & Install
+<img width="2318" height="1313" alt="Screenshot From 2026-11-17 15-08-44" src="https://github.com/user-attachments/assets/99597cce-49bd-4006-808f-2c86afb002e0" />
+
+```
+php -S localhost:8000
+```
+ 
+## Yang ditambahkan
+ 
+* `manifest.json`: nama, `display: standalone`, `start_url`, dan ikon 192/512 (termasuk maskable) di `icons/`. Di-link dari `index.php` bersama `theme-color` dan `apple-touch-icon`.
+* `offline.html`: halaman cadangan jika halaman belum pernah tersimpan di cache.
+* Tombol **Install app** (`menubar.php`): tersembunyi sampai browser memicu `beforeinstallprompt`, lalu hilang setelah diklik atau app terpasang (`script.js`).
+## Cache (`sw.js`)
+ 
+* `install`: precache app shell (`offline.html`, `style.css`, `script.js`, `manifest.json`, ikon).
+* `activate`: hapus cache versi lama.
+* `fetch`, strategi per resource:
+    * Halaman PHP: network-first, lalu salinan cache, lalu `offline.html`.
+    * `uploads/`: cache-first (nama file acak, tidak berubah).
+    * CSS, JS, ikon, manifest: stale-while-revalidate.
+* Hanya request GET satu origin yang ditangani; POST tidak disentuh.
+* Ubah `todo-vN` di `sw.js` setiap file yang di-precache berubah.
+## Tes offline
+ 
+1. Saat online, buka halaman **Personal** dan **Shared** sekali (halaman tersimpan saat dikunjungi).
+2. DevTools → Application → Cache Storage: pastikan ada entri halaman selain precache.
+3. Network → Offline, lalu refresh: halaman yang pernah dibuka tetap tampil.
+Halaman yang belum pernah dibuka menampilkan `offline.html`. Form tambah, edit, dan hapus tidak berfungsi offline karena butuh server.
