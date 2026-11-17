@@ -1,478 +1,292 @@
-const DB_NAME = "todo-app";
-const THEME_KEY = "todo-theme";
-const DB_VERSION = 1;
-const STORE = "todos";
-const LEGACY_KEY = "todo-app-items";
-const MAX_IMAGE_WIDTH = 1024;
-const REMINDER_CHECK_MS = 15000;
-
-// DOM Elements
-const list = document.getElementById("todo-list");
-const empty = document.getElementById("empty-message");
-const form = document.getElementById("todo-form");
-const text = document.getElementById("todo-input");
-const textError = document.getElementById("todo-error");
-const remind = document.getElementById("remind-input");
-const remindError = document.getElementById("remind-error");
-const cameraBtn = document.getElementById("camera-btn");
-const uploadBtn = document.getElementById("upload-btn");
-const fileInput = document.getElementById("file-input");
-const imageError = document.getElementById("image-error");
-const previewBox = document.getElementById("image-preview");
-const previewImg = document.getElementById("preview-img");
-const alt = document.getElementById("alt-input");
-const removeImage = document.getElementById("remove-image-btn");
-const submitBtn = document.getElementById("submit-btn");
-const cancelBtn = document.getElementById("cancel-btn");
-const notifStatus = document.getElementById("notif-status");
-const notifBtn = document.getElementById("notif-btn");
-const dialog = document.getElementById("camera-dialog");
-const video = document.getElementById("camera-video");
-const captureBtn = document.getElementById("capture-btn");
-const closeCamera = document.getElementById("camera-close-btn");
-const canvas = document.getElementById("capture-canvas");
-const todoStatus = document.getElementById("status");
-const themeToggle = document.getElementById("theme-toogle");
-
-// SVG Icons
-const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" aria-hidden="true"><path d="M400-304 240-464l56-56 104 104 264-264 56 56-320 320Z"/></svg>`;
-const TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960" width="24px" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>`;
-
-// State
-let todos = loadTodos();
-let editingId = null;
-let imageBlob = null;
-let previewUrl = null;
-let cameraStream = null;
-let announceTimer;
-
-// Announce screen reader messages
-function announce(message) {
-    todoStatus.textContent = "";
-    clearTimeout(announceTimer);
-    announceTimer = setTimeout(() => {
-        todoStatus.textContent = message;
-    }, 50);
-}
-
-// IndexedDB setup
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = () => {
-            if (!request.result.objectStoreNames.contains(STORE)) {
-                request.result.createObjectStore(STORE, { keyPath: "id" });
-            }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-const dbPromise = openDB();
-dbPromise.catch(() => { });
-
-async function withStore(mode, action) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const request = action(tx.objectStore(STORE));
-        tx.oncomplete = () => resolve(request ? request.result : undefined);
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-    });
-}
-
-const dbGetAll = () => withStore("readonly", (s) => s.getAll());
-const dbPut = (todo) => withStore("readwrite", (s) => s.put(todo));
-const dbDelete = (id) => withStore("readwrite", (s) => s.delete(id));
-
-// Generate unique ID
-function newId() {
-    return crypto.randomUUID
-        ? crypto.randomUUID()
-        : `{Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-// Migrate legacy todos
-async function migrateLegacyTodos() {
-    let legacy;
-    try {
-        legacy = JSON.parse(localStorage.getItem(LEGACY_KEY));
-    } catch {
-        return;
-    }
-    if (!Array.isArray(legacy) || legacy.length === 0) return;
-    for (const item of legacy) {
-        await dbPut({
-            id: item.id || newId(),
-            text: String(item.text || ""),
-            done: Boolean(item.done),
-            remindAt: null,
-            notified: false,
-            image: null,
-            imageAlt: "",
-            createdAt: Date.now(),
-        });
-    }
-    try {
-        localStorage.removeItem(LEGACY_KEY);
-    } catch { }
-}
-
-// Theme handling
-function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-    themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-    themeToggle.addEventListener("click", () => {
-        const next =
-            document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-        applyTheme(next);
-        try {
-            localStorage.setItem(THEME_KEY, next);
-        } catch { }
-        announce(`${next === "dark" ? "Dark" : "Light"} mode on`);
-    });
-}
-
-function formatTime(iso) {
-    return new Date(iso).toLocaleString(undefined, {
+const $ = (id) => document.getElementById(id);
+const el = (t, p, ...k) => {
+    const e = Object.assign(document.createElement(t), p);
+    e.append(...k);
+    return e;
+};
+const say = (m) => {
+    $("status").textContent = "";
+    setTimeout(() => ($("status").textContent = m), 50);
+};
+const fmt = (s) =>
+    new Date(s).toLocaleString(undefined, {
         dateStyle: "medium",
         timeStyle: "short",
     });
-}
 
-function toLocalInputValue(iso) {
-    const d = new Date(iso);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-}
+let todos = [],
+    editId = null,
+    img = null,
+    imgUrl = null,
+    urls = [],
+    stream = null,
+    sw = null;
 
-function srText(text) {
-    const span = document.createElement("span");
-    span.className = "sr-only";
-    span.textContent = text;
-    return span;
-}
+// ---- IndexedDB (todo data) ----
+const db = new Promise((ok, no) => {
+    const r = indexedDB.open("todo-app", 1);
+    r.onupgradeneeded = () =>
+        r.result.createObjectStore("todos", { keyPath: "id" });
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => no(r.error);
+});
+const run = async (mode, fn) => {
+    const t = (await db).transaction("todos", mode),
+        r = fn(t.objectStore("todos"));
+    return new Promise((ok, no) => {
+        t.oncomplete = () => ok(r.result);
+        t.onerror = () => no(t.error);
+    });
+};
+const save = (t) =>
+    run("readwrite", (s) => s.put(t)).catch(() => say("Could not save"));
 
-// Build todo item
-function buildItem(todo) {
-    const li = document.createElement("li");
-    li.className = "todo-item";
-    li.dataset.id = todo.id;
+// ---- Theme (localStorage preference) ----
+const setTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    $("theme-toggle").setAttribute("aria-pressed", t === "dark");
+};
+$("theme-toggle").onclick = () => {
+    const t =
+        document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    setTheme(t);
+    try {
+        localStorage.setItem("todo-theme", t);
+    } catch { }
+    say(`${t} mode on`);
+};
 
-    const main = document.createElement("div");
-    main.className = "todo-main";
-
-    const label = document.createElement("label");
-    label.className = "todo-check";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.id = `todo-${todo.id}`;
-    checkbox.checked = todo.done;
-
-    const box = document.createElement("label");
-    box.className = "custom-checkbox";
-    box.setAttribute("aria-hidden", "true");
-    box.innerHTML = CHECK_SVG;
-
-    const textSpan = document.createElement("span");
-    textSpan.className = "todo-text";
-    textSpan.textContent = todo.text;
-
-    label.append(checkbox, box, textSpan);
-
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "edit-button";
-    edit.textContent = "Edit";
-    edit.append(srText(` todo: ${todo.text}`));
-
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "delete-button";
-    del.setAttribute("aria-label", "Delete todo item");
-    del.innerHTML = TRASH_SVG;
-    del.append(srText(`Delete todo: ${todo.text}`));
-
-    if (todo.remindAt) {
-        const meta = document.createElement("p");
-        meta.className = "todo-meta";
-        const time = document.createElement("time");
-        time.setAttribute("datetime", todo.remindAt);
-        time.textContent = formatTime(todo.remindAt);
-        meta.append(time);
-        li.append(meta);
+// ---- Render ----
+function item(t) {
+    const cb = el("input", {
+        type: "checkbox",
+        id: "c-" + t.id,
+        checked: t.done,
+    });
+    cb.onchange = () => {
+        t.done = cb.checked;
+        save(t);
+    };
+    const edit = el(
+        "button",
+        {
+            type: "button",
+            className: "btn btn-secondary",
+            ariaLabel: "Edit " + t.text,
+            onclick: () => startEdit(t),
+        },
+        "Edit",
+    );
+    const del = el(
+        "button",
+        {
+            type: "button",
+            className: "btn btn-secondary",
+            ariaLabel: "Delete " + t.text,
+        },
+        "Delete",
+    );
+    del.onclick = async () => {
+        await run("readwrite", (s) => s.delete(t.id));
+        todos = todos.filter((x) => x !== t);
+        if (editId === t.id) reset();
+        render();
+        say("Todo deleted");
+    };
+    const li = el(
+        "li",
+        { className: "todo-item" },
+        cb,
+        el("label", { htmlFor: cb.id }, t.text),
+        edit,
+        del,
+    );
+    if (t.remindAt)
+        li.append(
+            el(
+                "time",
+                { className: "meta", dateTime: t.remindAt },
+                "Reminder: " + fmt(t.remindAt),
+            ),
+        );
+    if (t.image) {
+        const u = URL.createObjectURL(t.image);
+        urls.push(u);
+        li.append(el("img", { src: u, alt: t.alt }));
     }
-
-    li.append(main, edit, del);
     return li;
 }
-
-// Load todos from storage
-function loadTodos() {
-    try {
-        return JSON.parse(localStorage.getItem(STORE)) || [];
-    } catch {
-        return [];
-    }
-}
-
-// Save todos to storage
-function saveTodos() {
-    localStorage.setItem(STORE, JSON.stringify(todos));
-}
-
-// Render todo list
 function render() {
-    list.innerHTML = "";
-    empty.hidden = todos.length > 0;
-
-    todos.forEach((todo) => {
-        const li = buildItem(todo);
-        list.append(li);
-    });
+    urls.forEach((u) => URL.revokeObjectURL(u));
+    urls = [];
+    $("todo-list").replaceChildren(...todos.map(item));
+    $("empty-message").hidden = todos.length > 0;
 }
 
-// Reset editor form
-function resetEditor() {
-    editingId = null;
-    text.value = "";
-    text.disabled = true;
-    submitBtn.disabled = true;
-    textError.textContent = "";
-    previewBox.hidden = true;
-    imageError.textContent = "";
+// ---- Form ----
+function reset() {
+    $("todo-form").reset();
+    clearImg();
+    editId = null;
+    $("todo-error").textContent = $("remind-error").textContent = "";
+    $("form-heading").textContent = "Add todo";
+    $("submit-btn").textContent = "Add todo";
+    $("cancel-btn").hidden = true;
 }
-
-// Form submission
-form.addEventListener("submit", async (e) => {
+function startEdit(t) {
+    reset();
+    editId = t.id;
+    $("todo-input").value = t.text;
+    $("remind-input").value = t.remindAt || "";
+    if (t.image) {
+        setImg(t.image);
+        $("alt-input").value = t.alt;
+    }
+    $("form-heading").textContent = "Edit todo";
+    $("submit-btn").textContent = "Save todo";
+    $("cancel-btn").hidden = false;
+    $("todo-input").focus();
+}
+$("cancel-btn").onclick = reset;
+$("todo-form").onsubmit = async (e) => {
     e.preventDefault();
-
-    const textValue = text.value.trim();
-    if (!textValue) {
-        textError.textContent = "Todo text is required";
-        text.focus();
-        return;
-    }
-    textError.textContent = "";
-
-    // Validate reminder
-    const remindValue = remind.value;
-    if (remindValue) {
-        const remindDate = new Date(remindValue);
-        if (isNaN(remindDate.getTime())) {
-            remindError.textContent = "Invalid date/time";
-            remind.focus();
-            return;
-        }
-    } else {
-        remindError.textContent = "";
-    }
-
-    // Create todo object
-    const todo = {
-        id: editingId || newId(),
-        text: textValue,
-        done: false,
-        remindAt: remind.value || null,
+    const text = $("todo-input").value.trim(),
+        when = $("remind-input").value;
+    $("todo-error").textContent = text ? "" : "Todo text is required";
+    $("remind-error").textContent =
+        when && new Date(when) < Date.now() ? "Pick a future time" : "";
+    if (!text) return $("todo-input").focus();
+    if ($("remind-error").textContent) return $("remind-input").focus();
+    const old = todos.find((x) => x.id === editId);
+    const t = {
+        id: editId || crypto.randomUUID(),
+        text,
+        done: old?.done || false,
+        remindAt: when || null,
         notified: false,
-        image: imageBlob || null,
-        imageAlt: alt.value.trim(),
-        createdAt: editingId
-            ? todos.find((t) => t.id === editingId)?.createdAt
-            : Date.now(),
+        image: img,
+        alt: $("alt-input").value.trim(),
+        createdAt: old?.createdAt || Date.now(),
     };
-
-    // Check for duplicate
-    if (!editingId && todos.find((t) => t.text === textValue)) {
-        textError.textContent = "A todo with this text already exists";
-        text.focus();
-        return;
-    }
-
-    // Update todos
-    if (editingId) {
-        const index = todos.findIndex((t) => t.id === editingId);
-        todos[index] = todo;
-    } else {
-        todos.push(todo);
-    }
-
-    saveTodos();
+    await save(t);
+    todos = old ? todos.map((x) => (x === old ? t : x)) : [...todos, t];
+    reset();
     render();
-    resetEditor();
+    say(old ? "Todo updated" : "Todo added");
+    $("todo-input").focus();
+};
 
-    // Add notification
-    if (todo.remindAt) {
-        notifStatus.textContent = `Reminder set for ${formatTime(todo.remindAt)}`;
-        notifBtn.hidden = false;
-    }
-});
-
-// Cancel button
-cancelBtn.addEventListener("click", () => {
-    resetEditor();
-});
-
-// Image upload button
-uploadBtn.addEventListener("click", () => {
-    fileInput.hidden = false;
-    fileInput.value = "";
-    fileInput.focus();
-});
-
-// File input change
-fileInput.addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    imageError.textContent = "";
-
+// ---- Image: upload + Media Capture API ----
+async function shrink(src) {
+    // File/Blob/video -> JPEG blob, max 1024px wide
+    const b = await createImageBitmap(src),
+        s = Math.min(1, 1024 / b.width),
+        c = $("capture-canvas");
+    c.width = b.width * s;
+    c.height = b.height * s;
+    c.getContext("2d").drawImage(b, 0, 0, c.width, c.height);
+    return new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.85));
+}
+function setImg(b) {
+    clearImg();
+    img = b;
+    imgUrl = URL.createObjectURL(b);
+    $("preview-img").src = imgUrl;
+    $("image-preview").hidden = false;
+}
+function clearImg() {
+    if (imgUrl) URL.revokeObjectURL(imgUrl);
+    img = imgUrl = null;
+    $("image-preview").hidden = true;
+    $("file-input").value = "";
+    $("image-error").textContent = "";
+}
+$("remove-image-btn").onclick = () => {
+    clearImg();
+    $("alt-input").value = "";
+    say("Image removed");
+    $("upload-btn").focus();
+};
+$("upload-btn").onclick = () => $("file-input").click();
+$("file-input").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
     try {
-        const arrayBuffer = await file.arrayBuffer();
-        const blob = new Blob([arrayBuffer]);
+        setImg(await shrink(f));
+        $("alt-input").focus();
+    } catch {
+        $("image-error").textContent = "Could not load image";
+    }
+};
+$("camera-btn").onclick = async () => {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        $("camera-video").srcObject = stream;
+        $("camera-dialog").showModal();
+    } catch {
+        $("image-error").textContent = "Could not access camera";
+    }
+};
+$("camera-dialog").onclose = () => {
+    stream?.getTracks().forEach((t) => t.stop());
+    stream = null;
+    $("camera-btn").focus();
+};
+$("camera-close-btn").onclick = () => $("camera-dialog").close();
+$("capture-btn").onclick = async () => {
+    setImg(await shrink($("camera-video")));
+    $("camera-dialog").close();
+    $("alt-input").focus();
+};
 
-        // Resize if needed
-        if (file.width > MAX_IMAGE_WIDTH) {
-            const resized = await resizeImage(file, MAX_IMAGE_WIDTH);
-            imageBlob = resized;
-        } else {
-            imageBlob = blob;
+// ---- Notifications + reminders (Service Worker) ----
+function notifUI() {
+    const p = "Notification" in window ? Notification.permission : "none";
+    $("notif-btn").hidden = p !== "default";
+    $("notif-status").textContent = {
+        granted: "Notifications are on.",
+        denied: "Notifications are blocked. Allow them in browser settings.",
+        default: "Enable notifications to get reminders.",
+        none: "Notifications are not supported in this browser.",
+    }[p];
+}
+$("notif-btn").onclick = async () => {
+    await Notification.requestPermission();
+    notifUI();
+};
+setInterval(async () => {
+    for (const t of todos) {
+        if (
+            !t.remindAt ||
+            t.notified ||
+            t.done ||
+            new Date(t.remindAt) > Date.now()
+        )
+            continue;
+        t.notified = true;
+        await save(t);
+        say("Reminder: " + t.text);
+        if ("Notification" in window && Notification.permission === "granted") {
+            const o = { body: t.text, tag: t.id };
+            sw?.active
+                ? sw.showNotification("Todo reminder", o)
+                : new Notification("Todo reminder", o);
         }
-
-        previewUrl = URL.createObjectURL(imageBlob);
-        previewImg.src = previewUrl;
-        previewBox.hidden = false;
-        previewImg.alt = alt.value.trim() || "Uploaded image";
-    } catch (err) {
-        imageError.textContent = "Failed to load image";
     }
-});
+}, 15000);
 
-// Remove image
-removeImage.addEventListener("click", () => {
-    imageBlob = null;
-    previewUrl = null;
-    previewBox.hidden = true;
-    imageError.textContent = "";
-});
-
-// Camera button
-cameraBtn.addEventListener("click", async () => {
+// ---- Init ----
+(async () => {
+    setTheme(document.documentElement.dataset.theme);
+    notifUI();
+    if ("serviceWorker" in navigator)
+        sw = await navigator.serviceWorker.register("sw.js").catch(() => null);
     try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user" },
-        });
-        video.srcObject = cameraStream;
-        dialog.showModal();
-    } catch (err) {
-        alert("Could not access camera");
+        todos = (await run("readonly", (s) => s.getAll())).sort(
+            (a, b) => a.createdAt - b.createdAt,
+        );
+    } catch {
+        $("todo-error").textContent = "Storage is unavailable";
     }
-});
-
-// Close camera
-closeCamera.addEventListener("click", () => {
-    dialog.close();
-    stopCamera();
-});
-
-// Capture photo
-captureBtn.addEventListener("click", async () => {
-    if (!video.srcObject) return;
-
-    const context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const capture = canvas.toDataURL("image/png");
-    const blob = await fetch(capture).then((r) => r.blob());
-
-    // Resize if needed
-    if (canvas.width > MAX_IMAGE_WIDTH) {
-        const resized = await resizeImage(blob, MAX_IMAGE_WIDTH);
-        imageBlob = resized;
-    } else {
-        imageBlob = blob;
-    }
-
-    previewUrl = URL.createObjectURL(imageBlob);
-    previewImg.src = previewUrl;
-    previewBox.hidden = false;
-    previewImg.alt = alt.value.trim() || "Captured photo";
-
-    dialog.close();
-    stopCamera();
-});
-
-function stopCamera() {
-    if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop());
-        cameraStream = null;
-    }
-}
-
-// Resize image function
-function resizeImage(file, maxWidth) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-            const img = new Image();
-            img.src = e.target.result;
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const scale = maxWidth / img.width;
-                canvas.width = maxWidth;
-                canvas.height = img.height * scale;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toBlob(resolve, "image/png"));
-            };
-            img.onerror = reject;
-        };
-        reader.onerror = reject;
-    });
-}
-
-// Checkbox change
-list.addEventListener("change", (e) => {
-    if (e.target.type !== "checkbox") return;
-    const id = e.target.closest(".todo-item").dataset.id;
-    const todo = todos.find((t) => t.id === id);
-    todo.done = e.target.checked;
-    saveTodos();
-});
-
-// Click handlers for edit/delete
-list.addEventListener("click", (e) => {
-    const item = e.target.closest(".todo-item");
-    if (!item) return;
-    const id = item.dataset.id;
-
-    if (e.target.closest(".delete-button")) {
-        todos = todos.filter((t) => t.id !== id);
-        saveTodos();
-        render();
-        if (editingId === id) resetEditor();
-    } else if (e.target.closest(".edit-button")) {
-        const todo = todos.find((t) => t.id === id);
-        editingId = id;
-        text.disabled = false;
-        submitBtn.disabled = false;
-        text.value = todo.text;
-        text.focus();
-    }
-});
-
-notifBtn.addEventListener("click", () => {
-    if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-    }
-});
-
-migrateLegacyTodos();
-applyTheme(localStorage.getItem(THEME_KEY) || "light");
-render();
+    render();
+})();

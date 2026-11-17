@@ -1,85 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
-
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>ToDo-app</title>
-		<!-- apply saved theme -->
 		<script>
-			(function(){
-				var theme;
-				try{theme=localStorage.getItem("todo-theme");}catch(e){}
-				if(theme!=="light" && theme !== "dark"){
-					theme = window.matchMedia("(prefers-color-scheme: light)")?"light":"dark";
-				}
-				document.documentElement.dataset.theme = theme;
-			})();
+			// apply saved theme before paint
+			let t; try { t = localStorage.getItem("todo-theme"); } catch {}
+			if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+			document.documentElement.dataset.theme = t;
 		</script>
-
-		<link href="css/style.css" rel="stylesheet">
+		<link rel="stylesheet" href="style.css">
 		<script src="script.js" defer></script>
 	</head>
-
 	<body>
 		<a href="#main" class="skip-link">Skip to main content</a>
-		<header class="app-header">
+		<header>
 			<h1>ToDo-app</h1>
-			<button type="button" id="theme-toogle" class="btn btn-secondary" aria-pressed="false">
-				Dark Mode
-			</button>
+			<button type="button" id="theme-toggle" class="btn btn-secondary" aria-pressed="false">Dark mode</button>
 		</header>
-		<main class="wrapper">
-			<section class="todo-list-panel" aria-labelledby="list-heading">
+
+		<main id="main" class="wrapper" tabindex="-1">
+			<section aria-labelledby="list-heading">
 				<h2 id="list-heading">To-do list</h2>
-				<p id="empty-message" class="hint">Add your first todo using form</p>
+				<p id="empty-message">Add your first todo using the form.</p>
 				<ul id="todo-list"></ul>
 			</section>
 
-			<section class="todo-editor-panel" aria-labelledby="form-heading">
+			<section aria-labelledby="form-heading">
 				<h2 id="form-heading">Add todo</h2>
 				<form id="todo-form" novalidate>
 					<div class="field">
-						<label for="todo-input">
-							Todo <span class="meta-label">(required)</span>
-						</label>
-						<input type="text" id="todo-input" class="todo-input" autocomplete="off" aria-required="true" aria-describedby="todo-error">
-						<p class="todo-error" id="todo-error" role="alert"></p>
+						<label for="todo-input">Todo (required)</label>
+						<input type="text" id="todo-input" autocomplete="off" required aria-describedby="todo-error">
+						<p id="todo-error" class="error" role="alert"></p>
 					</div>
+
 					<div class="field">
-						<label for="remind-input"><span class="meta-label">(optional)</span></label>
-						<input type="datetime-local" id="remind-input" class="todo-input" aria-describedby="remind-hint remind-error">
-						<p id="remind-hint" class="hint">You get a notification</p>
+						<label for="remind-input">Remind me at (optional)</label>
+						<input type="datetime-local" id="remind-input" aria-describedby="remind-error">
 						<p id="remind-error" class="error" role="alert"></p>
 					</div>
 
 					<fieldset class="field">
-						<legend>Image <span class="meta-label">(optional)</span></legend>
-						<div class="button-row">
-							<button id="camera-btn" class="btn btn-secondary">Take photo</button>
-							<button id="upload-btn" class="btn btn-secondary">Upload image</button>
+						<legend>Image (optional)</legend>
+						<div class="row">
+							<button type="button" id="camera-btn" class="btn btn-secondary">Take photo</button>
+							<button type="button" id="upload-btn" class="btn btn-secondary">Upload image</button>
 						</div>
 						<input type="file" id="file-input" accept="image/*" hidden>
 						<p id="image-error" class="error" role="alert"></p>
-
-						<div id="image-preview" class="image-preview" hidden>
-							<img src="Temp" alt="Preview of the attached img" id="preview-img">
-							<div class="field">
-								<label for="alt-input">Image description</label>
-								<input type="text" id="alt-input" class="todo-input" autocomplete="off" aria-describedby="alt-hint">
-								<p id="alt-hint" class="hint">Write description image</p>
-							</div>
-							<button id="remove-image-btn" class="btn btn-secondary">Remove image</button>
+						<div id="image-preview" hidden>
+							<img id="preview-img" alt="Preview of the attached image">
+							<label for="alt-input">Image description</label>
+							<input type="text" id="alt-input" autocomplete="off">
+							<button type="button" id="remove-image-btn" class="btn btn-secondary">Remove image</button>
 						</div>
 					</fieldset>
 
-					<div class="button-row">
+					<div class="row">
 						<button type="submit" id="submit-btn" class="btn">Add todo</button>
 						<button type="button" id="cancel-btn" class="btn btn-secondary" hidden>Cancel</button>
 					</div>
 				</form>
-				<div class="notif-box">
-					<p id="notif-status" class="hint"></p>
+
+				<div class="notif">
+					<p id="notif-status"></p>
 					<button type="button" id="notif-btn" class="btn btn-secondary" hidden>Enable notifications</button>
 				</div>
 			</section>
@@ -87,13 +73,14 @@
 
 		<dialog id="camera-dialog" aria-labelledby="camera-title">
 			<h2 id="camera-title">Take a photo</h2>
-			<video id="camera-video" autoplay muted aria-label="Live camera preview"></video>
-			<div class="button-row">
+			<video id="camera-video" autoplay muted playsinline aria-label="Live camera preview"></video>
+			<div class="row">
 				<button type="button" id="capture-btn" class="btn">Capture photo</button>
 				<button type="button" id="camera-close-btn" class="btn btn-secondary">Cancel</button>
 			</div>
 		</dialog>
-		<div id="status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+		<div id="status" class="sr-only" role="status" aria-live="polite"></div>
 		<canvas id="capture-canvas" hidden></canvas>
 	</body>
 </html>
